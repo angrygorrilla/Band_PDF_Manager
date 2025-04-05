@@ -174,5 +174,5 @@ cython_debug/
 .pypirc
 
 #testing files
-.pdf
-.png
+*.pdf
+*.png
