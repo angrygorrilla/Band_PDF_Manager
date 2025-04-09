@@ -42,14 +42,20 @@ def main():
         .list(pageSize=10, fields="nextPageToken, files(id, name)")
         .execute()
     )
+
+    #query terms
+        #mimeType = 'application/vnd.google-apps.folder'
+        #Files within a collection (for example, the folder ID in the parents collection)
     items = results.get("files", [])
 
     if not items:
       print("No files found.")
       return
     print("Files:")
-    for item in items:
-      print(f"{item['name']} ({item['id']})")
+    for count,item in enumerate(items):
+        if count==0:
+            print(item)
+        #print(f"{item['name']} ({item['id']})")
   except HttpError as error:
     # TODO(developer) - Handle errors from drive API.
     print(f"An error occurred: {error}")
