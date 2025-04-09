@@ -45,12 +45,9 @@ def pdf_to_instruments(pdf_file,max_pages=-1):
     
     page_text=[image_to_text(image) for image in images[0:max_pages:1]]
     with open('log.txt','w+') as log:  
-        for item in page_text:
-            if item is list:
-                for str in item:
-                    log.write(item)
-            else:
-                log.write(item)
+        log.write("\n".join(str(item) for item in page_text))
+
+
     page_instrument_references=text_to_instrument(page_text)
     
     instruments=[]
@@ -85,13 +82,16 @@ def text_to_instrument(page_text):
                         
                         #strip any number after a dash or slash - this keeps page numbering consistant:
                         #ie. trumpet 2-2 is the second page of trumpet 2 music, not a seperate instrument
-                        new_text=re.split(r'[,-/()]', text)
+
+                        #do not include periods in this list - Euphonium T.C and Euphonium B.C are seperate instruments
+
+                        new_text=re.split(r'[-/()]', text)
                         if new_text!=[]:
                             new_text=new_text[0].strip()
                         else:
                             new_text=None
-                        
-                        page_instrument_references[count].append(new_text)
+                        #only send the instrument for now - there's too many errors for instrument number etc.
+                        page_instrument_references[count].append(instrument)
     return (page_instrument_references)
 
 #get all indexes of the given item in a list
@@ -137,7 +137,7 @@ def test():
      ['81', 'm', 'molto rit', '93', '=', '60', '167', '175', '101', '183', '76', '109', 'my]', 'rit.', '119| Allegro', '120', '(to mute)', '2', '/191', '60', 'm', '130', 'poco rit.', '96', '(solo)', 'mute', 'mp', 'poco meno mosso', '= 80', '98', '199|', '2091', '35', '(to open)', '138]', '= 76', 'rit', '3', '5', '218/', '148|', '=', '112', 'open', '158]', '(to mute)', 'mute', '6', 'm', 'mp', 'Trumpet in Bb 1 - 2', 'Trumpet in Bb 1 - 3'],
 ['Written in 2019 for the University of Wisconsin Stevens Point bands, Michael S Butler; director:', 'Dedicated to Donald E. Greene and in celebration of the 12Sth anniversary of UWSP', 'Trumpet in Bb 1', 'RIVER OF STARS', 'Barbara York', 'Allegro', '2', '72', '(to open)', '(solo)', '10', 'mute', 'm', 'Allegretto marcato', '112', 'Meno mosso', '24', '2', 'poco rit.', '3', '29', 'open', 'mp', '43', '55', '65', '73', 'Copyright 0 2019 Cimarron Music Press. All Rights Reserved.', 'www.CimarronMusiccom']]
     pdf_file='Hands of Mercy - Low Brass.pdf'
-    print(pdf_to_instruments(pdf_file),max_pages=2)
+    print(pdf_to_instruments(pdf_file,max_pages=2))
 
 
     #instruments=text_to_instrument(text)
