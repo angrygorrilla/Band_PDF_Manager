@@ -176,6 +176,7 @@ cython_debug/
 #testing files
 *.pdf
 *.png
+*.txt
 
 #secrets
 /band_pdf_manager/src/endpoints/secrets/*
