@@ -28,7 +28,11 @@ def download_file(real_file_id):
     file_id = real_file_id
 
     # pylint: disable=maybe-no-member
-    request = service.files().get_media(fileId=file_id)
+
+    request = service.files().export_media(fileId=file_id, mimeType='application/pdf')
+
+    #request = service.files().get_media(fileId=file_id)
+    print(request)
     file = io.BytesIO()
     downloader = MediaIoBaseDownload(file, request)
     done = False
@@ -40,13 +44,15 @@ def download_file(real_file_id):
     print(f"An error occurred: {error}")
     file = None
 
-  return file.getvalue()
+    with open('file.pdf','wb') as f:
+      f.write(file)
+  return file
 
 # If modifying these scopes, delete the file token.json.
 SCOPES = ["https://www.googleapis.com/auth/drive.metadata.readonly"]
 
 #get the top n files
-def top_file_names(number_of_files):
+def top_file_folders(number_of_files):
   """Shows basic usage of the Drive v3 API.
   Prints the names and ids of the first 10 files the user has access to.
   """
@@ -61,7 +67,9 @@ def top_file_names(number_of_files):
     # Call the Drive v3 API
     results = (
         service.files()
-        .list(pageSize=number_of_files, fields="nextPageToken, files(id, name)")
+        .list(pageSize=number_of_files, 
+              fields="nextPageToken, files(id, name)",
+              )
         .execute()
     )
 
@@ -81,6 +89,52 @@ def top_file_names(number_of_files):
   except HttpError as error:
     # TODO(developer) - Handle errors from drive API.
     print(f"An error occurred: {error}")
+
+#search for users file folder
+def search_folders(name,folder=True):
+  """Shows basic usage of the Drive v3 API.
+  Prints the names and ids of the first 10 files the user has access to.
+  """
+  # The file token.json stores the user's access and refresh tokens, and is
+  # created automatically when the authorization flow completes for the first
+  # time.
+  creds=get_creds()
+
+  try:
+    service = build("drive", "v3", credentials=creds)
+    qustion=None
+    if folder==True:
+        question=f"mimeType='application/vnd.google-apps.folder' and name='{name}'",
+    elif folder==False:
+        question=f"name='{name}'",
+
+
+    # Call the Drive v3 API
+    results = (
+        service.files()
+        .list(fields="nextPageToken, files(id, name)",
+              q=question,
+              )
+        .execute()
+    )
+
+    #query terms
+        #mimeType = 'application/vnd.google-apps.folder'
+        #Files within a collection (for example, the folder ID in the parents collection)
+
+    items = results.get("files", [])
+    #items from this api include a name and an id
+    for count,item in enumerate(items):
+        print(f"{item['name']} ({item['id']})")
+    return(items)
+  except HttpError as error:
+    # TODO(developer) - Handle errors from drive API.
+    print(f"An error occurred: {error}")
+
+
+#download all files from a folder
+def download_folder_contents(id):
+    return None
 
 
 
@@ -107,8 +161,10 @@ def get_creds():
     return creds
 
 if __name__ == "__main__":
-  #top_file_names(20)
-  
+  #print(search_folders('Resume',folder=False))
+  #top_file_folders(999)
+  #17pnOs4CbKGzDIK0FTmAU-6MoId8gjWwF
+  download_file('14mdta9XO2E2oZAE-zFKph_Lb0xio0Xls')
 
  
 
@@ -117,6 +173,6 @@ if __name__ == "__main__":
   #GCB FALL - TUBA (1X7tY37gwMj4otUOYMo98wO31NOgqucOZ)
 
 
-#id's from the other service don't seem to work - need to look into it.
+#id's from the other service don't seem to work - need to look into
   #example of a file: when robins appear (1naNF8R2M0BdpiZF1Q60Ax_yA1Re7LKdk)
-  download_file('1naNF8R2M0BdpiZF1Q60Ax_yA1Re7LKdk')
+  #download_file('1naNF8R2M0BdpiZF1Q60Ax_yA1Re7LKdk')

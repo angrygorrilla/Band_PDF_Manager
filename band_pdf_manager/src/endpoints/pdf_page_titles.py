@@ -53,6 +53,7 @@ def pdf_to_instruments(pdf_file,max_pages=-1):
     instruments=[]
     prev_instrument=''
     for page in page_instrument_references:
+        #number of instrument references on each page is the length of the page here
         if len(page)==1:
             instruments.append(page[0])
             prev_instrument=page[0]
@@ -72,18 +73,18 @@ def text_to_instrument(page_text):
     page_instrument_references=[[] for page in page_text]
     for count,page in enumerate(page_text):
         if page!=[]:
-            print('>page<')
-            print(page)
             for text in page:
 
                 for instrument in helpers.all_instruments:
                     if instrument in text.lower():
-                        #use the text match so that we have the instrument part # (eg trumpet 2)
-                        
-                        #strip any number after a dash or slash - this keeps page numbering consistant:
-                        #ie. trumpet 2-2 is the second page of trumpet 2 music, not a seperate instrument
 
-                        #do not include periods in this list - Euphonium T.C and Euphonium B.C are seperate instruments
+                        #eventually:
+                            #use the text match so that we have the instrument part # (eg trumpet 2)
+                            
+                            #strip any number after a dash or slash - this keeps page numbering consistant:
+                            #ie. trumpet 2-2 is the second page of trumpet 2 music, not a seperate instrument
+
+                            #do not include periods in this list - Euphonium T.C and Euphonium B.C are seperate instruments
 
                         new_text=re.split(r'[-/()]', text)
                         if new_text!=[]:
@@ -101,15 +102,22 @@ def get_indices(element, mylist):
         if mylist[i] == element:
             indices.append(i)
     return indices
+def flatten(input_list):
+    return([
+    x
+    for xs in input_list
+    for x in xs
+])
 
 #turn a list of pages with elements into a list of page slices
 #instrument list is a 1-d array of 1 instrument on each page
 def instrument_pages_to_slices(instrument_list):
-    instrument_set= set(instrument_list)
+    instrument_set= set(flatten(instrument_list))
     slices=[]
     instruments=[]
     for instrument in instrument_set:
-        indices=get_indices(instrument,instrument_list)
+        indices = [index for index, element in enumerate(instrument_list) if element == instrument]
+        print(indices)  # will print [1, 3]
         first=min(indices)
         last=max(indices)
         instruments.append(instrument)
@@ -123,27 +131,38 @@ def instrument_pages_to_slices(instrument_list):
 #slices are the pages for each instrument
 #instruments are the instruments for each slice
 #pdf is the entire sheet score
+
+#note-  fitz and pdfreader disagree on formats - this function only works with pdfreader
+
 def pdf_splitter(slices,instruments,pdf):
     for index,cur_slice in enumerate(slices):
-        pages=select_portion(pdf.pages,cur_slice)
+        my_pages=[]
+        for i in range(cur_slice.start,cur_slice.stop):
+            new_page=pdf.pages[i]
+            my_pages.append(new_page)
         
-    output = PdfWriter()
-    output.add_page(pages)
-    with open("document-page%s.pdf" % instruments[index], "wb") as outputStream:
-        output.write(outputStream) 
+        output = PdfWriter()
+        for page in my_pages:
+            output.add_page(page)
+        with open("document-page_%s.pdf" % instruments[index], "wb") as outputStream:
+            output.write(outputStream)
 
 def test():
     text = [['Written in 2019 for the University of Wisconsin Stevens Point bands, Michael S Butler; director:', 'Dedicated to Donald E. Greene and in celebration of the 12Sth anniversary of UWSP', 'Trumpet in Bb 1', 'RIVER OF STARS', 'Barbara York', 'Allegro', '2', '72', '(to open)', '(solo)', '10', 'mute', 'm', 'Allegretto marcato', '112', 'Meno mosso', '24', '2', 'poco rit.', '3', '29', 'open', 'mp', '43', '55', '65', '73', 'Copyright 0 2019 Cimarron Music Press. All Rights Reserved.', 'www.CimarronMusiccom'],
      ['81', 'm', 'molto rit', '93', '=', '60', '167', '175', '101', '183', '76', '109', 'my]', 'rit.', '119| Allegro', '120', '(to mute)', '2', '/191', '60', 'm', '130', 'poco rit.', '96', '(solo)', 'mute', 'mp', 'poco meno mosso', '= 80', '98', '199|', '2091', '35', '(to open)', '138]', '= 76', 'rit', '3', '5', '218/', '148|', '=', '112', 'open', '158]', '(to mute)', 'mute', '6', 'm', 'mp', 'Trumpet in Bb 1 - 2', 'Trumpet in Bb 1 - 3'],
 ['Written in 2019 for the University of Wisconsin Stevens Point bands, Michael S Butler; director:', 'Dedicated to Donald E. Greene and in celebration of the 12Sth anniversary of UWSP', 'Trumpet in Bb 1', 'RIVER OF STARS', 'Barbara York', 'Allegro', '2', '72', '(to open)', '(solo)', '10', 'mute', 'm', 'Allegretto marcato', '112', 'Meno mosso', '24', '2', 'poco rit.', '3', '29', 'open', 'mp', '43', '55', '65', '73', 'Copyright 0 2019 Cimarron Music Press. All Rights Reserved.', 'www.CimarronMusiccom']]
     pdf_file='Hands of Mercy - Low Brass.pdf'
-    print(pdf_to_instruments(pdf_file,max_pages=2))
+    instrument_list=(pdf_to_instruments(pdf_file,max_pages=3))
+    print('instrument list')
+    print(instrument_list)
+    instruments,slices=instrument_pages_to_slices(instrument_list)
+    print(instruments)
+    print('slices')
+    print(slices)
 
-
-    #instruments=text_to_instrument(text)
-    #instruments,slices=instrument_pages_to_slices(instruments[0])
-    #print(slices)
-    
+    #note-  fitz and pdfreader disagree on formats - this function only works with pdfreader
+    doc = PdfReader('Hands of Mercy - Low Brass.pdf')
+    pdf_splitter(slices,instruments,doc)
 test()
 
 
