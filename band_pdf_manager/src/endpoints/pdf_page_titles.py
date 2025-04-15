@@ -5,26 +5,27 @@ import PIL
 import numpy as np
 import re
 from PyPDF2 import PdfWriter, PdfReader
-
+import os
+import time
 
 #generator function that returns all the images in a pdf file in numpy array format
 def pdf_to_image(pdf_file):
-    doc = fitz.open(pdf_file)
+    
     zoom = 4
     mat = fitz.Matrix(zoom, zoom)
     count = 0
     # Count variable is to get the number of pages in the pdf
-    for p in doc:
+    for p in pdf_file:
         count += 1
     for i in range(count):
         val = f"image_{i+1}.png"
-        page = doc.load_page(i)
+        page = pdf_file.load_page(i)
         pix = page.get_pixmap(matrix=mat)
         #convert image to pil then to np array
         pix = PIL.Image.frombytes("RGB", [pix.width, pix.height], pix.samples)
         pix = np.array(pix)
         yield pix
-    doc.close()
+    pdf_file.close()
 
 
 #list slicer using slice objects
@@ -40,8 +41,8 @@ def image_to_text(img):
 
 #collect the text from a set of pdf pages    
 def pdf_to_instruments(pdf_file,max_pages=-1):
-
-    images=[image for image in pdf_to_image(pdf_file)]
+    doc = fitz.open(pdf_file)
+    images=[image for image in pdf_to_image(doc)]
     
     page_text=[image_to_text(image) for image in images[0:max_pages:1]]
     with open('log.txt','w+') as log:  
@@ -135,33 +136,48 @@ def instrument_pages_to_slices(instrument_list):
 #note-  fitz and pdfreader disagree on formats - this function only works with pdfreader
 
 def pdf_splitter(slices,instruments,pdf):
+    doc = PdfReader(pdf)
+
     for index,cur_slice in enumerate(slices):
         my_pages=[]
         for i in range(cur_slice.start,cur_slice.stop):
-            new_page=pdf.pages[i]
+            new_page=doc.pages[i]
             my_pages.append(new_page)
         
         output = PdfWriter()
         for page in my_pages:
             output.add_page(page)
-        with open("document-page_%s.pdf" % instruments[index], "wb") as outputStream:
+        name=pdf.split('.')[0]
+        #use name as the folder for now, then put one file for each instrument
+        if not os.path.exists(name):
+            os.mkdir(name)
+
+        with open(os.path.join(name,''.join(['_',"%s.pdf" % instruments[index]])), "wb") as outputStream:
             output.write(outputStream)
+
+def end_to_end_pdf(pdf_file_name):
+
+    instrument_list=(pdf_to_instruments(pdf_file_name))
+    instruments,slices=instrument_pages_to_slices(instrument_list)
+    #note-  fitz and pdfreader disagree on formats - this function only works with pdfreader
+    doc = PdfReader(pdf_file_name)
+    pdf_splitter(slices,instruments,pdf_file_name)
+
+
 
 def test():
     text = [['Written in 2019 for the University of Wisconsin Stevens Point bands, Michael S Butler; director:', 'Dedicated to Donald E. Greene and in celebration of the 12Sth anniversary of UWSP', 'Trumpet in Bb 1', 'RIVER OF STARS', 'Barbara York', 'Allegro', '2', '72', '(to open)', '(solo)', '10', 'mute', 'm', 'Allegretto marcato', '112', 'Meno mosso', '24', '2', 'poco rit.', '3', '29', 'open', 'mp', '43', '55', '65', '73', 'Copyright 0 2019 Cimarron Music Press. All Rights Reserved.', 'www.CimarronMusiccom'],
      ['81', 'm', 'molto rit', '93', '=', '60', '167', '175', '101', '183', '76', '109', 'my]', 'rit.', '119| Allegro', '120', '(to mute)', '2', '/191', '60', 'm', '130', 'poco rit.', '96', '(solo)', 'mute', 'mp', 'poco meno mosso', '= 80', '98', '199|', '2091', '35', '(to open)', '138]', '= 76', 'rit', '3', '5', '218/', '148|', '=', '112', 'open', '158]', '(to mute)', 'mute', '6', 'm', 'mp', 'Trumpet in Bb 1 - 2', 'Trumpet in Bb 1 - 3'],
 ['Written in 2019 for the University of Wisconsin Stevens Point bands, Michael S Butler; director:', 'Dedicated to Donald E. Greene and in celebration of the 12Sth anniversary of UWSP', 'Trumpet in Bb 1', 'RIVER OF STARS', 'Barbara York', 'Allegro', '2', '72', '(to open)', '(solo)', '10', 'mute', 'm', 'Allegretto marcato', '112', 'Meno mosso', '24', '2', 'poco rit.', '3', '29', 'open', 'mp', '43', '55', '65', '73', 'Copyright 0 2019 Cimarron Music Press. All Rights Reserved.', 'www.CimarronMusiccom']]
-    pdf_file='Hands of Mercy - Low Brass.pdf'    
-    instrument_list=(pdf_to_instruments(pdf_file))
+    pdf_file_name='Hands of Mercy - Low Brass.pdf'    
+    instrument_list=(pdf_to_instruments(pdf_file_name))
     instruments,slices=instrument_pages_to_slices(instrument_list)
-    print(instruments)
-    print('slices')
-    print(slices)
-
     #note-  fitz and pdfreader disagree on formats - this function only works with pdfreader
     doc = PdfReader('Hands of Mercy - Low Brass.pdf')
-    pdf_splitter(slices,instruments,doc)
-test()
+    pdf_splitter(slices,instruments,pdf_file_name)
+
+if __name__=='__main__':
+    test()
 
 
 
