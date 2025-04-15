@@ -24,17 +24,18 @@ def return_pdf(filename):
     try:
         filename = secure_filename(filename)  # Sanitize the filename
         file_path = os.path.join(PDF_FOLDER, filename)
-        if os.path.isfile(file_path):
+        if os.path.isfile(os.path.join('hosted_files',file_path)):
             return send_file(file_path, as_attachment=True)
         else:
             return make_response(f"File '{filename}' not found.", 404)
     except Exception as e:
+        
         return make_response(f"Error: {str(e)}", 500)
     
 #do processing work on a pdf
 def process_pdf(pdf_name,folder):
     pdf_page_titles.end_to_end_pdf(pdf_name)
-    zip_file.zipdir(folder,pdf_name.split('.')[0]+'.zip')
+    zip_file.zipdir(folder,os.path.join('hosted_files', pdf_name.split('.')[0]+'.zip'))
 
 #simple queue for now
 def process_queue():
@@ -74,8 +75,21 @@ def upload_file():
             filename = secure_filename(file.filename)
             file.save(os.path.join('.',filename))
             data_queue.put(filename)
-            return json.dumps({'success':True}), 200, {'ContentType':'application/json'} 
-        
+
+            response=json.dumps({"message": "PDF generated successfully!",
+			'downloadLink': 'http://localhost:3000/${outputFilePath}'}),
+            return json.dumps(response), 200, {'ContentType':'application/json'} 
+
+@app.route('/file_list', methods=['GET'])
+def seperated_files():
+    f = []
+    for (dirpath, dirnames, filenames) in os.walk('hosted_files'):
+        f.extend(filenames)
+        break
+    return json.dumps({'files':f}), 200, {'ContentType':'application/json'} 
+
+
+
 if __name__=='__main__':
      threading.Thread(target=process_queue,daemon=True).start()
      app.run(host='127.0.0.1', port=5002)
