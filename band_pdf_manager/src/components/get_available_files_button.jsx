@@ -2,12 +2,14 @@ import {FixedSizeList as List} from "react-window";
 import AutoSizer from "react-virtualized-auto-sizer";
 import React, { useState } from "react"
 
-
-
-
 const Get_available_files_button = () => {
   const [file, setFile] = useState([])
   const [status, setStatus] = useState("initial")
+
+  const arr = [
+    ['hello','2','3']
+  ];
+  const AllRows = () => arr.map((i) => <div key = {i}>{i}</div>);
 
   const get_available_files = async () => {
 
@@ -20,18 +22,14 @@ const Get_available_files_button = () => {
 
     console.log(data)
     setFile([...data])
-
+    
 
     } catch (error) {
-    console.error(error)
-    setStatus("fail")
+        console.error(error)
+        setStatus("fail")
     }
   }
-  const arr = [
-    { code: "12H", id: "1" },
-    { code: "4gf", id: "2" }
-  ];
-  const AllRows = () => arr.map((i, index) => <div key={index}>{i.code}</div>);
+  
 return (
     
     <>
