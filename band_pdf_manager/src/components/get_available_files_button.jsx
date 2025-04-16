@@ -1,34 +1,70 @@
-const axios = require('axios');
+import {FixedSizeList as List} from "react-window";
+import AutoSizer from "react-virtualized-auto-sizer";
+import React, { useState } from "react"
 
 
-import {fixedSizeList as List} from "react-window";
-import AutoSizer from "react-vertualized-auto-sizer";
 
-<AutoSizer>
-{({height, width}) =>(
-<List
-    className="List"
-    height={height}
-    itemCount={1000}
-    itemSize={35}
-    width={width}
-    >
-        {Row}
-    </List>
-)}
-</AutoSizer>
 
-server ='http://127.0.0.1:5002'
-// Make a request for a user with a given ID
-axios.get('/file_list')
-  .then(function (response) {
-    // handle success
-    console.log(response);
-  })
-  .catch(function (error) {
-    // handle error
-    console.log(error);
-  })
-  .finally(function () {
-    // always executed
-  });
+const Get_available_files_button = () => {
+  const [file, setFile] = useState([])
+  const [status, setStatus] = useState("initial")
+
+  const get_available_files = async () => {
+
+    try {
+        const result = await fetch("http://127.0.0.1:5002/file_list", {
+        method: "get",
+    })
+
+    const data = await result.json()
+
+    console.log(data)
+    setFile([...data])
+
+
+    } catch (error) {
+    console.error(error)
+    setStatus("fail")
+    }
+  }
+  const arr = [
+    { code: "12H", id: "1" },
+    { code: "4gf", id: "2" }
+  ];
+  const AllRows = () => arr.map((i, index) => <div key={index}>{i.code}</div>);
+return (
+    
+    <>
+    <button onClick={get_available_files} className="get_files">
+    Get List
+  </button> 
+  <AutoSizer>
+    
+    {({ height, width }) => (
+      <List
+        className="List"
+        height={height}
+        itemCount={1000}
+        itemSize={35}
+        width={width}
+      >
+        {AllRows/* {file.length>0 ? file.map((i, index) =>(<div> <div key={index}>{i.code}</div></div>)) : (<div>hello</div>)} */}
+      </List>
+    )}
+  </AutoSizer>
+  </>
+);
+
+const Result = ({ status }) => {
+  if (status === "success") {
+    return <p>✅ File uploaded successfully!</p>
+  } else if (status === "fail") {
+    return <p>❌ File upload failed!</p>
+  } else if (status === "uploading") {
+    return <p>⏳ Uploading selected file...</p>
+  } else {
+    return null
+  }
+}
+}
+export default Get_available_files_button

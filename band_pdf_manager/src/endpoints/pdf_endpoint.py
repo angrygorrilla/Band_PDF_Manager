@@ -1,11 +1,12 @@
 import os
-from flask import Flask, make_response, send_file,render_template, request, redirect, url_for
+from flask import Flask, make_response, send_file,render_template, request, redirect, url_for,jsonify
 from werkzeug.utils import secure_filename
 
 from flask import Flask, flash, request, redirect, url_for
 from werkzeug.utils import secure_filename
 import json,time,os,threading
 from queue import Queue
+from flask_cors import CORS
 
 import pdf_page_titles,zip_file
 UPLOAD_FOLDER = '/path/to/the/uploads'
@@ -13,6 +14,8 @@ ALLOWED_EXTENSIONS = {'txt', 'pdf', 'png', 'jpg', 'jpeg', 'gif'}
 
 app = Flask(__name__)
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
+CORS(app)
+
 #setup queue for simple multithreading - could eventually be switched to celery
 data_queue=Queue()
 app = Flask(__name__)
@@ -35,6 +38,8 @@ def return_pdf(filename):
 #do processing work on a pdf
 def process_pdf(pdf_name,folder):
     pdf_page_titles.end_to_end_pdf(pdf_name)
+    if not os.path.isfile(os.path.join('hosted_files')):
+        os.mkdir('hosted_files')
     zip_file.zipdir(folder,os.path.join('hosted_files', pdf_name.split('.')[0]+'.zip'))
 
 #simple queue for now
@@ -86,9 +91,11 @@ def seperated_files():
     for (dirpath, dirnames, filenames) in os.walk('hosted_files'):
         f.extend(filenames)
         break
-    return json.dumps({'files':f}), 200, {'ContentType':'application/json'} 
-
-
+    print('in get_file_list')
+    print(f)
+    response=jsonify(f)
+    response.headers.add('Access-Control-Allow-Origin', '*')
+    return response
 
 if __name__=='__main__':
      threading.Thread(target=process_queue,daemon=True).start()

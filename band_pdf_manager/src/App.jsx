@@ -1,15 +1,15 @@
 import './App.css';
 
 import SingleFileUploader from './components/SingleFileUploader';
+import Get_available_files_button from './components/Get_available_files_button';
 
 function App() {
   return (
     <>
-      <h1>React File Upload</h1>
+      <h1>Band PDF Scanner</h1>
 
       <SingleFileUploader />
-
-      <p className="read-the-docs">This app is built with Vite and React.</p>
+      <Get_available_files_button/>
     </>
   );
 }
