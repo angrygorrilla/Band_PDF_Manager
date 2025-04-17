@@ -83,7 +83,8 @@ def upload_file():
 
             response=json.dumps({"message": "PDF generated successfully!",
 			'downloadLink': 'http://localhost:3000/${outputFilePath}'}),
-            return json.dumps(response), 200, {'ContentType':'application/json'} 
+            response.headers.add('Access-Control-Allow-Origin', '*')
+            return response
 
 @app.route('/file_list', methods=['GET'])
 def seperated_files():
