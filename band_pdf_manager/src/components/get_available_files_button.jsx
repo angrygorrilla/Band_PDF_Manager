@@ -9,7 +9,7 @@ const Get_available_files_button = () => {
   const arr = [
     ['hello','2','3']
   ];
-  const AllRows = () => arr.map((i) => <div key = {i}>{i}</div>);
+  let AllRows = () => file.length==0?<div>no files</div>:file.map((i) => <div key = {i}>{i}</div>);
 
   const get_available_files = async () => {
 
@@ -22,7 +22,7 @@ const Get_available_files_button = () => {
 
     console.log(data)
     setFile([...data])
-    
+    console.log(file.length)
 
     } catch (error) {
         console.error(error)
@@ -31,7 +31,6 @@ const Get_available_files_button = () => {
   }
   
 return (
-    
     <>
     <button onClick={get_available_files} className="get_files">
     Get List
@@ -46,23 +45,15 @@ return (
         itemSize={35}
         width={width}
       >
-        {AllRows/* {file.length>0 ? file.map((i, index) =>(<div> <div key={index}>{i.code}</div></div>)) : (<div>hello</div>)} */}
+        {AllRows}
       </List>
     )}
   </AutoSizer>
   </>
 );
 
-const Result = ({ status }) => {
-  if (status === "success") {
-    return <p>✅ File uploaded successfully!</p>
-  } else if (status === "fail") {
-    return <p>❌ File upload failed!</p>
-  } else if (status === "uploading") {
-    return <p>⏳ Uploading selected file...</p>
-  } else {
-    return null
+const Result = ({ file }) => {
+  return file.map((i) => <div key = {i}>{i}</div>);
   }
-}
 }
 export default Get_available_files_button
