@@ -152,7 +152,7 @@ def pdf_splitter(slices,instruments,pdf):
         if not os.path.exists(name):
             os.mkdir(name)
 
-        with open(os.path.join(name,''.join(['_',"%s.pdf" % instruments[index]])), "wb") as outputStream:
+        with open(os.path.join(name,''.join([name+'_',"%s.pdf" % instruments[index]])), "wb") as outputStream:
             output.write(outputStream)
 
 def end_to_end_pdf(pdf_file_name):

@@ -19,7 +19,7 @@ CORS(app)
 #setup queue for simple multithreading - could eventually be switched to celery
 data_queue=Queue()
 app = Flask(__name__)
-PDF_FOLDER = '/path/to/pdf/folder'  # Replace with the path to your PDF folder
+PDF_FOLDER = 'C:\\projects\\band_ocr\\Band_PDF_Manager\\band_pdf_manager\\src\\endpoints\\hosted_files'  # Replace with the path to your PDF folder
 
 #serve a completed pdf zip file
 @app.route("/pdf/<string:filename>", methods=['GET'])
@@ -27,20 +27,27 @@ def return_pdf(filename):
     try:
         filename = secure_filename(filename)  # Sanitize the filename
         file_path = os.path.join(PDF_FOLDER, filename)
+        print(file_path)
         if os.path.isfile(os.path.join('hosted_files',file_path)):
-            return send_file(file_path, as_attachment=True)
+            response=send_file(file_path, as_attachment=True)
+            response.headers.add('Access-Control-Allow-Origin', '*')
+            return response
         else:
-            return make_response(f"File '{filename}' not found.", 404)
+            response = make_response(f"File '{filename}' not found.", 404)
+            response.headers.add('Access-Control-Allow-Origin', '*')
+            return response
     except Exception as e:
-        
-        return make_response(f"Error: {str(e)}", 500)
+        response = make_response(f"Error: {str(e)}", 500)
+        response.headers.add('Access-Control-Allow-Origin', '*')
+        return response
     
 #do processing work on a pdf
 def process_pdf(pdf_name,folder):
     pdf_page_titles.end_to_end_pdf(pdf_name)
-    if not os.path.isfile(os.path.join('hosted_files')):
+    if not os.path.isdir(os.path.join('hosted_files')):
         os.mkdir('hosted_files')
-    zip_file.zipdir(folder,os.path.join('hosted_files', pdf_name.split('.')[0]+'.zip'))
+        #error in ziping files - Cannot create a file when that file already exists: 'hosted_files'
+    zip_file.zipdir(folder,os.path.join('hosted_files', secure_filename(pdf_name.split('.')[0])+'.zip'))
 
 #simple queue for now
 def process_queue():

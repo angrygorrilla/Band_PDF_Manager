@@ -1,16 +1,38 @@
 import {FixedSizeList as List} from "react-window";
 import AutoSizer from "react-virtualized-auto-sizer";
 import React, { useState } from "react"
+import axios from "axios";
 
 const Get_available_files_button = () => {
   const [file, setFile] = useState([])
   const [status, setStatus] = useState("initial")
 
-  const arr = [
-    ['hello','2','3']
-  ];
-  let AllRows = () => file.length==0?<div>no files</div>:file.map((i) => <div key = {i}>{i}</div>);
+  let AllRows = () => file.length==0?<div>no files</div>:file.map((i) => <><button id={i} key = {i} onClick ={handleDownloadPDF}>{i}</button></>);
 
+
+
+  const handleDownloadPDF = async (event) => {
+    let filename=event.target.id
+    alert(filename)
+    try {
+        const response = await axios.get(
+            `http://127.0.0.1:5002/pdf/${filename}`,
+            { responseType: "blob" } // To handle binary data
+        );
+
+        // Create a blob and trigger download
+        const url = window.URL.createObjectURL(new Blob([response.data]));
+        const link = document.createElement("a");
+        link.href = url;
+        link.setAttribute("download", filename);
+        document.body.appendChild(link);
+        link.click();
+        link.parentNode.removeChild(link);
+    } catch (error) {
+        console.error("Error downloading PDF:", error.message);
+    }
+};
+  
   const get_available_files = async () => {
 
     try {
@@ -23,7 +45,7 @@ const Get_available_files_button = () => {
     console.log(data)
     setFile([...data])
     console.log(file.length)
-
+    
     } catch (error) {
         console.error(error)
         setStatus("fail")
