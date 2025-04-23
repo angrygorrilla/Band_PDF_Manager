@@ -9,11 +9,8 @@ const Get_available_files_button = () => {
 
   let AllRows = () => file.length==0?<div>no files</div>:file.map((i) => <><button id={i} key = {i} onClick ={handleDownloadPDF}>{i}</button></>);
 
-
-
   const handleDownloadPDF = async (event) => {
     let filename=event.target.id
-    alert(filename)
     try {
         const response = await axios.get(
             `http://127.0.0.1:5002/pdf/${filename}`,
@@ -44,7 +41,6 @@ const Get_available_files_button = () => {
 
     console.log(data)
     setFile([...data])
-    console.log(file.length)
     
     } catch (error) {
         console.error(error)
