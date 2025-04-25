@@ -3,20 +3,21 @@
 import os
 from flask import Flask, make_response, send_file,render_template, request, redirect, url_for,jsonify
 from werkzeug.utils import secure_filename
+from functools import wraps
+import jwt
 
 from flask import Flask, flash, request, redirect, url_for,_request_ctx_stack
 from werkzeug.utils import secure_filename
 import json,time,os,threading
 from queue import Queue
-from flask_cors import CORS
+from flask_cors import CORS,cross_origin
 import jwt
 import pdf_page_titles,zip_file
 from six.moves.urllib.request import urlopen
 
-
 #api auth
 AUTH0_DOMAIN = 'dev-j3w5kkcgno5ahh5s.us.auth0.com'
-YOUR_API_AUDIENCE='unknown'
+YOUR_API_AUDIENCE='https://dev-j3w5kkcgno5ahh5s.us.auth0.com/api/v2/'
 API_AUDIENCE = YOUR_API_AUDIENCE
 ALGORITHMS = ["RS256"]
 
@@ -115,11 +116,6 @@ class AuthError(Exception):
         self.error = error
         self.status_code = status_code
 
-@APP.errorhandler(AuthError)
-def handle_auth_error(ex):
-    response = jsonify(ex.error)
-    response.status_code = ex.status_code
-    return response
 
 UPLOAD_FOLDER = '/path/to/the/uploads'
 ALLOWED_EXTENSIONS = {'txt', 'pdf', 'png', 'jpg', 'jpeg', 'gif'}
@@ -128,6 +124,12 @@ app = Flask(__name__)
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 CORS(app)
 
+
+@app.errorhandler(AuthError)
+def handle_auth_error(ex):
+    response = jsonify(ex.error)
+    response.status_code = ex.status_code
+    return response
 #setup queue for simple multithreading - could eventually be switched to celery
 data_queue=Queue()
 app = Flask(__name__)
