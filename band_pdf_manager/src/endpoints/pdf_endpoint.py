@@ -11,7 +11,6 @@ from werkzeug.utils import secure_filename
 import json,time,os,threading
 from queue import Queue
 from flask_cors import CORS,cross_origin
-import jwt
 import pdf_page_titles,zip_file
 from six.moves.urllib.request import urlopen
 
@@ -68,6 +67,7 @@ def requires_auth(f):
     """
     @wraps(f)
     def decorated(*args, **kwargs):
+        print('in decorator')
         token = get_token_auth_header()
         jsonurl = urlopen("https://"+AUTH0_DOMAIN+"/.well-known/jwks.json")
         jwks = json.loads(jsonurl.read())
@@ -133,28 +133,10 @@ def handle_auth_error(ex):
 #setup queue for simple multithreading - could eventually be switched to celery
 data_queue=Queue()
 app = Flask(__name__)
-PDF_FOLDER = 'C:\\projects\\band_ocr\\Band_PDF_Manager\\band_pdf_manager\\src\\endpoints\\hosted_files'  # Replace with the path to your PDF folder
 
-#serve a completed pdf zip file
-@app.route("/pdf/<string:filename>", methods=['GET'])
-def return_pdf(filename):
-    try:
-        filename = secure_filename(filename)  # Sanitize the filename
-        file_path = os.path.join(PDF_FOLDER, filename)
-        print(file_path)
-        if os.path.isfile(os.path.join('hosted_files',file_path)):
-            response=send_file(file_path, as_attachment=True)
-            response.headers.add('Access-Control-Allow-Origin', '*')
-            return response
-        else:
-            response = make_response(f"File '{filename}' not found.", 404)
-            response.headers.add('Access-Control-Allow-Origin', '*')
-            return response
-    except Exception as e:
-        response = make_response(f"Error: {str(e)}", 500)
-        response.headers.add('Access-Control-Allow-Origin', '*')
-        return response
-    
+#need to make this a relative path
+PDF_FOLDER = 'C:\\projects\\Band_PDF_Manager\\band_pdf_manager\\src\\endpoints\\hosted_files'  # Replace with the path to your PDF folder
+
 #do processing work on a pdf
 def process_pdf(pdf_name,folder):
     pdf_page_titles.end_to_end_pdf(pdf_name)
@@ -177,6 +159,39 @@ def allowed_file(filename):
     return '.' in filename and \
            filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
+
+#serve a completed pdf/zip file
+@app.route("/pdf/<string:filename>", methods=['GET'])
+def return_pdf(filename):
+    try:
+        filename = secure_filename(filename)  # Sanitize the filename
+        file_path = os.path.join(PDF_FOLDER, filename)
+        print(file_path)
+        if os.path.isfile(os.path.join('hosted_files',file_path)):
+            response=send_file(file_path, as_attachment=True)
+            response.headers.add('Access-Control-Allow-Origin', '*')
+            return response
+        else:
+            response = make_response(f"File '{filename}' not found.", 404)
+            response.headers.add('Access-Control-Allow-Origin', '*')
+            return response
+    except Exception as e:
+        response = make_response(f"Error: {str(e)}", 500)
+        response.headers.add('Access-Control-Allow-Origin', '*')
+        return response
+    
+@cross_origin(headers=["Content-Type", "Authorization"])
+@app.route('/auth_get_list')
+@requires_auth
+def auth_get_list():
+    f = []
+    for (dirpath, dirnames, filenames) in os.walk('hosted_files'):
+        f.extend(filenames)
+        break
+    print('in get_file_list')
+    print(f)
+    response=jsonify(f)
+    return response
 
 #get the PDF file for the entire song
 #needs to create a folder for the files
@@ -202,7 +217,7 @@ def upload_file():
             file.save(os.path.join('.',filename))
             data_queue.put(filename)
 
-            response=json.dumps({"message": "PDF generated successfully!",
+            response=jsonify({"message": "PDF generated successfully!",
 			'downloadLink': 'http://localhost:3000/${outputFilePath}'}),
             response.headers.add('Access-Control-Allow-Origin', '*')
             return response
