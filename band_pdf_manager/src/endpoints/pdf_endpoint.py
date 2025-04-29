@@ -20,6 +20,10 @@ YOUR_API_AUDIENCE='https://dev-j3w5kkcgno5ahh5s.us.auth0.com/api/v2/'
 API_AUDIENCE = YOUR_API_AUDIENCE
 ALGORITHMS = ["RS256"]
 
+
+#payload tag needs to be changed - when I swapped it to user_email it stopped, so there's rules in play to govern what this can be
+EMAIL_KEY='https://my-app.example.com/email'
+
 UPLOAD_FOLDER = '/path/to/the/uploads'
 ALLOWED_EXTENSIONS = {'txt', 'pdf', 'png', 'jpg', 'jpeg', 'gif'}
 app = Flask(__name__)
@@ -120,6 +124,10 @@ def requires_auth(f):
                                     " token."}, 401)
 
             _request_ctx_stack.top.current_user = payload
+            print("current user")
+            
+            #payload tag needs to be changed - when I swapped it to user_email it stopped, so there's rules in play to govern what this can be
+            print(payload['https://my-app.example.com/email'])
             return f(*args, **kwargs)
         raise AuthError({"code": "invalid_header",
                         "description": "Unable to find appropriate key"}, 401)
@@ -212,8 +220,10 @@ def auth_get_list():
     print('in get_file_list')
     print(f)
     response=jsonify(f)
+    print(_request_ctx_stack.top.current_user[EMAIL_KEY])
     response.headers.add("Access-Control-Allow-Headers", "Origin, X-Requested-With, Content-Type, Accept")
     response.headers.add('Access-Control-Allow-Origin', '*')
+    
     return response
 
 #get the PDF file for the entire song
