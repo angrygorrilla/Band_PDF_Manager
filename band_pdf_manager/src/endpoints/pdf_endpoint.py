@@ -31,7 +31,13 @@ with app.app_context():
     @current_app.before_request
     def basic_authentication():
         print('hello')
-    
+
+#use a user's email address to construct a folder to store files in
+def user_directory(user_email):
+    secure_filename(user_email).replace('.','_')
+
+
+
 def requires_scope(required_scope):
     """Determines if the required scope is present in the Access Token
     Args:
@@ -90,6 +96,7 @@ def requires_auth(f):
         print(jwks["keys"])
         for key in jwks["keys"]:
             if key["kid"] == unverified_header["kid"]:
+                #this needs cryptography installed to work
                 public_key = jwt.algorithms.RSAAlgorithm.from_jwk(json.dumps(key))
         if public_key:
             try:
@@ -131,10 +138,6 @@ class AuthError(Exception):
         self.error = error
         self.status_code = status_code
 
-
-
-
-
 @app.errorhandler(AuthError)
 def handle_auth_error(ex):
     response = jsonify(ex.error)
@@ -148,12 +151,12 @@ app = Flask(__name__)
 PDF_FOLDER = 'C:\\projects\\Band_PDF_Manager\\band_pdf_manager\\src\\endpoints\\hosted_files'  # Replace with the path to your PDF folder
 
 #do processing work on a pdf
-def process_pdf(pdf_name,folder):
+def process_pdf(pdf_name,folder,user):
     pdf_page_titles.end_to_end_pdf(pdf_name)
     if not os.path.isdir(os.path.join('hosted_files')):
         os.mkdir('hosted_files')
         #error in ziping files - Cannot create a file when that file already exists: 'hosted_files'
-    zip_file.zipdir(folder,os.path.join('hosted_files', secure_filename(pdf_name.split('.')[0])+'.zip'))
+    zip_file.zipdir(folder,os.path.join(f'hosted_files+{os.path.sep+user_directory(user)}', secure_filename(pdf_name.split('.')[0])+'.zip'))
 
 #simple queue for now
 def process_queue():
@@ -161,7 +164,8 @@ def process_queue():
         if not data_queue.empty():
             data = data_queue.get()
             print("processing data:", data)
-            process_pdf(data,data.split('.')[0])
+            #filename, filename before the ., the user
+            process_pdf(data[0],data[0].split('.')[0],data[1])
         else:
             time.sleep(1)
 
@@ -222,8 +226,11 @@ def auth_get_list():
 #place the splices in the folder
 #zip the folder
 #send zipped contents back to the website
+@requires_auth
+@cross_origin(headers=["Content-Type", "Authorization"])
 @app.route('/', methods=['GET', 'POST'])
 def upload_file():
+    user=_request_ctx_stack.top.current_user
     if request.method == 'POST':
         # check if the post request has the file part
         if 'file' not in request.files:
@@ -238,7 +245,7 @@ def upload_file():
         if file and allowed_file(file.filename):
             filename = secure_filename(file.filename)
             file.save(os.path.join('.',filename))
-            data_queue.put(filename)
+            data_queue.put([filename,user])
 
             response=jsonify({"message": "PDF generated successfully!",
 			'downloadLink': 'http://localhost:3000/${outputFilePath}'}),
