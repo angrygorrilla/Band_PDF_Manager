@@ -60,8 +60,8 @@ const get_available_files = async () => {
             scope: "read:current_user",
           },
         });
-  
-        console.log('before fetch')
+        console.log('accessToken')
+        console.log(accessToken)
         const result = await fetch("http://127.0.0.1:5002/auth_get_list", {
           method: "GET",
           headers: {
