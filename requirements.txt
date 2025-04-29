@@ -8,3 +8,5 @@ google-auth-oauthlib
 flask == 2.3.3
 flask_cors
 pyjwt
+six
+crypto

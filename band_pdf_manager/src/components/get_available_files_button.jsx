@@ -34,8 +34,8 @@ const Get_available_files_button = () => {
 const get_available_files = async () => {
 
   try {
-      const result = await fetch("http://127.0.0.1:5002/file_list", {
-      method: "get",
+      const result = await fetch("http://127.0.0.1:5002/auth_get_list", {
+      method: "GET",
   })
 
   const data = await result.json()
@@ -61,13 +61,14 @@ const get_available_files = async () => {
           },
         });
   
-
+        console.log('before fetch')
         const result = await fetch("http://127.0.0.1:5002/auth_get_list", {
-          method: "get",
-          // headers: {
-          //   Authorization: `Bearer ${accessToken}`,
-          // },
+          method: "GET",
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+          },
         });
+      console.log('after fetch')
 
       const data = await result.json()
       

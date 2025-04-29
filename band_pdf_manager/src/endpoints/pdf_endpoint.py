@@ -6,7 +6,7 @@ from werkzeug.utils import secure_filename
 from functools import wraps
 import jwt
 
-from flask import Flask, flash, request, redirect, url_for,_request_ctx_stack
+from flask import Flask, flash, request, redirect, url_for,_request_ctx_stack,Response,current_app
 from werkzeug.utils import secure_filename
 import json,time,os,threading
 from queue import Queue
@@ -20,6 +20,18 @@ YOUR_API_AUDIENCE='https://dev-j3w5kkcgno5ahh5s.us.auth0.com/api/v2/'
 API_AUDIENCE = YOUR_API_AUDIENCE
 ALGORITHMS = ["RS256"]
 
+UPLOAD_FOLDER = '/path/to/the/uploads'
+ALLOWED_EXTENSIONS = {'txt', 'pdf', 'png', 'jpg', 'jpeg', 'gif'}
+app = Flask(__name__)
+app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
+CORS(app,resources=['http://localhost:5173'])
+
+
+with app.app_context():
+    @current_app.before_request
+    def basic_authentication():
+        print('hello')
+    
 def requires_scope(required_scope):
     """Determines if the required scope is present in the Access Token
     Args:
@@ -37,6 +49,7 @@ def requires_scope(required_scope):
 def get_token_auth_header():
     """Obtains the Access Token from the Authorization Header
     """
+    print(request)
     auth = request.headers.get("Authorization", None)
     if not auth:
         raise AuthError({"code": "authorization_header_missing",
@@ -73,9 +86,11 @@ def requires_auth(f):
         jwks = json.loads(jsonurl.read())
         unverified_header = jwt.get_unverified_header(token)
         public_key = None
+        print(jwks)
+        print(jwks["keys"])
         for key in jwks["keys"]:
             if key["kid"] == unverified_header["kid"]:
-                public_key = jwt.algorithms.RSAAlgorithm.from_jwk(json.dumps(jwk))
+                public_key = jwt.algorithms.RSAAlgorithm.from_jwk(json.dumps(key))
         if public_key:
             try:
                 payload = jwt.decode(
@@ -117,12 +132,7 @@ class AuthError(Exception):
         self.status_code = status_code
 
 
-UPLOAD_FOLDER = '/path/to/the/uploads'
-ALLOWED_EXTENSIONS = {'txt', 'pdf', 'png', 'jpg', 'jpeg', 'gif'}
 
-app = Flask(__name__)
-app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
-CORS(app)
 
 
 @app.errorhandler(AuthError)
@@ -181,9 +191,20 @@ def return_pdf(filename):
         return response
     
 @cross_origin(headers=["Content-Type", "Authorization"])
-@app.route('/auth_get_list')
+@app.route('/auth_get_list',methods=['OPTIONS'])
+def auth_pre_flight():
+    print('responding to pre-flight')
+    to_respond= Response()
+    to_respond.headers.add('Access-Control-Allow-Origin', '*')
+    to_respond.headers.add('Access-Control-Allow-Headers','authorization')
+    
+    return to_respond
+
+@cross_origin(headers=["Content-Type", "Authorization"])
+@app.route('/auth_get_list',methods=['GET'])
 @requires_auth
 def auth_get_list():
+    print('responding to auth_get_list get')
     f = []
     for (dirpath, dirnames, filenames) in os.walk('hosted_files'):
         f.extend(filenames)
@@ -191,6 +212,8 @@ def auth_get_list():
     print('in get_file_list')
     print(f)
     response=jsonify(f)
+    response.headers.add("Access-Control-Allow-Headers", "Origin, X-Requested-With, Content-Type, Accept")
+    response.headers.add('Access-Control-Allow-Origin', '*')
     return response
 
 #get the PDF file for the entire song
