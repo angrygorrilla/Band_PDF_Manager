@@ -1,9 +1,10 @@
 import React, { useState } from "react"
+import { useAuth0 } from "@auth0/auth0-react";
 
 const SingleFileUploader = () => {
   const [file, setFile] = useState(null)
   const [status, setStatus] = useState("initial")
-
+  const { user, isAuthenticated, getAccessTokenSilently } = useAuth0();
   const handleFileChange = e => {
     if (e.target.files) {
       setStatus("initial")
@@ -15,15 +16,26 @@ const SingleFileUploader = () => {
     if (file) {
       setStatus("uploading")
 
-      const formData = new FormData()
-      formData.append("file", file)
-
       try {
-        const result = await fetch("http://127.0.0.1:5002", {
-          method: "POST",
-          body: formData
-        })
+        const accessToken = await getAccessTokenSilently({
+          authorizationParams: {
+            audience: `https://dev-j3w5kkcgno5ahh5s.us.auth0.com/api/v2/`,
+            scope: "read:current_user",
+          },
+        });
+        console.log('accessToken')
+        console.log(accessToken)
+        const formData = new FormData()
+        formData.append("file", file)
 
+        const result = await fetch("http://127.0.0.1:5002", {
+          
+          method: "POST",
+          body: formData,
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+          },
+        })
         const data = await result.json()
 
         console.log(data)

@@ -1,12 +1,12 @@
 #https://auth0.com/docs/quickstart/backend/python/01-authorization
 
 import os
-from flask import Flask, make_response, send_file,render_template, request, redirect, url_for,jsonify
+from flask import Flask, make_response, send_file,render_template, request, redirect, url_for,jsonify,g
 from werkzeug.utils import secure_filename
 from functools import wraps
 import jwt
 
-from flask import Flask, flash, request, redirect, url_for,_request_ctx_stack,Response,current_app
+from flask import Flask, flash, request, redirect, url_for,_request_ctx_stack,Response,current_app,g
 from werkzeug.utils import secure_filename
 import json,time,os,threading
 from queue import Queue
@@ -30,15 +30,9 @@ app = Flask(__name__)
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 CORS(app,resources=['http://localhost:5173'])
 
-
-with app.app_context():
-    @current_app.before_request
-    def basic_authentication():
-        print('hello')
-
 #use a user's email address to construct a folder to store files in
 def user_directory(user_email):
-    secure_filename(user_email).replace('.','_')
+    return secure_filename(user_email).replace('.','_')
 
 
 
@@ -85,6 +79,17 @@ def get_token_auth_header():
     token = parts[1]
     return token
 
+#example code for how to handle preflight - can't be implemented as a annotation because the function needs to return this response
+def handle_preflight(method):
+    if method.lower=='options':
+        print('responding to pre-flight')
+        to_respond= Response()
+        to_respond.headers.add('Access-Control-Allow-Origin', '*')
+        to_respond.headers.add('Access-Control-Allow-Headers','authorization')
+        
+        return to_respond
+
+#this has to be the last decorator before the function or it won't work
 def requires_auth(f):
     """Determines if the Access Token is valid
     """
@@ -129,8 +134,9 @@ def requires_auth(f):
                                 "description":
                                     "Unable to parse authentication"
                                     " token."}, 401)
-
-            _request_ctx_stack.top.current_user = payload
+            #store the user from the access token
+            _request_ctx_stack.top.current_user = payload[EMAIL_KEY]
+            g= payload[EMAIL_KEY]
             print("current user")
             
             #payload tag needs to be changed - when I swapped it to user_email it stopped, so there's rules in play to govern what this can be
@@ -163,16 +169,22 @@ def process_pdf(pdf_name,folder,user):
     pdf_page_titles.end_to_end_pdf(pdf_name)
     if not os.path.isdir(os.path.join('hosted_files')):
         os.mkdir('hosted_files')
-        #error in ziping files - Cannot create a file when that file already exists: 'hosted_files'
-    zip_file.zipdir(folder,os.path.join(f'hosted_files+{os.path.sep+user_directory(user)}', secure_filename(pdf_name.split('.')[0])+'.zip'))
+    user_dir=user_directory(user)
+    if not os.path.isdir(os.path.join('hosted_files')+os.path.sep+user_dir):
+        os.mkdir('hosted_files'+os.path.sep+user_dir)
+    final_dir=os.path.join(f'hosted_files{os.path.sep+user_directory(user)}', secure_filename(pdf_name.split('.')[0])+'.zip')
+    print(final_dir)
+    zip_file.zipdir(folder,final_dir)
 
 #simple queue for now
 def process_queue():
     while True:
         if not data_queue.empty():
             data = data_queue.get()
+            print(data[1])
             print("processing data:", data)
             #filename, filename before the ., the user
+            print(data[1])
             process_pdf(data[0],data[0].split('.')[0],data[1])
         else:
             time.sleep(1)
@@ -181,25 +193,41 @@ def allowed_file(filename):
     return '.' in filename and \
            filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
+@cross_origin(headers=["Content-Type", "Authorization"])
+@app.route('/pdf/<string:filename>',methods=['OPTIONS'])
+def pdf_pre_flight(filename):
+    print('responding to pre-flight pdf')
+    to_respond= Response()
+    to_respond.headers.add('Access-Control-Allow-Origin', '*')
+    to_respond.headers.add('Access-Control-Allow-Headers','authorization')
+    
+    return to_respond
 
 #serve a completed pdf/zip file
+@cross_origin(headers=["Content-Type", "Authorization"])
 @app.route("/pdf/<string:filename>", methods=['GET'])
+@requires_auth
 def return_pdf(filename):
+    user_email=_request_ctx_stack.top.current_user
+
     try:
         filename = secure_filename(filename)  # Sanitize the filename
-        file_path = os.path.join(PDF_FOLDER, filename)
+        file_path = os.path.join(f'{PDF_FOLDER+os.path.sep+user_directory(user_email)}', filename)
         print(file_path)
         if os.path.isfile(os.path.join('hosted_files',file_path)):
             response=send_file(file_path, as_attachment=True)
             response.headers.add('Access-Control-Allow-Origin', '*')
+            response.headers.add('Access-Control-Allow-Headers','authorization')
             return response
         else:
             response = make_response(f"File '{filename}' not found.", 404)
             response.headers.add('Access-Control-Allow-Origin', '*')
+            response.headers.add('Access-Control-Allow-Headers','authorization')
             return response
     except Exception as e:
         response = make_response(f"Error: {str(e)}", 500)
         response.headers.add('Access-Control-Allow-Origin', '*')
+        response.headers.add('Access-Control-Allow-Headers','authorization')
         return response
     
 @cross_origin(headers=["Content-Type", "Authorization"])
@@ -216,19 +244,30 @@ def auth_pre_flight():
 @app.route('/auth_get_list',methods=['GET'])
 @requires_auth
 def auth_get_list():
+    user_email=_request_ctx_stack.top.current_user
     print('responding to auth_get_list get')
     f = []
-    for (dirpath, dirnames, filenames) in os.walk('hosted_files'):
+    for (dirpath, dirnames, filenames) in os.walk(f'hosted_files{os.path.sep+user_directory(user_email)}'):
         f.extend(filenames)
         break
     print('in get_file_list')
     print(f)
     response=jsonify(f)
-    print(_request_ctx_stack.top.current_user[EMAIL_KEY])
     response.headers.add("Access-Control-Allow-Headers", "Origin, X-Requested-With, Content-Type, Accept")
     response.headers.add('Access-Control-Allow-Origin', '*')
     
     return response
+
+
+@cross_origin(headers=["Content-Type", "Authorization"])
+@app.route('/',methods=['OPTIONS'])
+def file_pre_flight():
+    print('responding to pre-flight')
+    to_respond= Response()
+    to_respond.headers.add('Access-Control-Allow-Origin', '*')
+    to_respond.headers.add('Access-Control-Allow-Headers','authorization')
+    
+    return to_respond
 
 #get the PDF file for the entire song
 #needs to create a folder for the files
@@ -236,10 +275,13 @@ def auth_get_list():
 #place the splices in the folder
 #zip the folder
 #send zipped contents back to the website
-@requires_auth
+
 @cross_origin(headers=["Content-Type", "Authorization"])
-@app.route('/', methods=['GET', 'POST'])
+@app.route('/', methods=['POST'])
+@requires_auth
 def upload_file():
+    print(request.method)
+    print('starting file')
     user=_request_ctx_stack.top.current_user
     if request.method == 'POST':
         # check if the post request has the file part
@@ -258,21 +300,10 @@ def upload_file():
             data_queue.put([filename,user])
 
             response=jsonify({"message": "PDF generated successfully!",
-			'downloadLink': 'http://localhost:3000/${outputFilePath}'}),
-            response.headers.add('Access-Control-Allow-Origin', '*')
+			'downloadLink': 'http://localhost:3000/${outputFilePath}','headers':''}),
+            #response.headers.add('Access-Control-Allow-Origin', '*')
             return response
 
-@app.route('/file_list', methods=['GET'])
-def seperated_files():
-    f = []
-    for (dirpath, dirnames, filenames) in os.walk('hosted_files'):
-        f.extend(filenames)
-        break
-    print('in get_file_list')
-    print(f)
-    response=jsonify(f)
-    response.headers.add('Access-Control-Allow-Origin', '*')
-    return response
 
 if __name__=='__main__':
      threading.Thread(target=process_queue,daemon=True).start()

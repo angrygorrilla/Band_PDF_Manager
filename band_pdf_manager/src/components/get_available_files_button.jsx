@@ -14,9 +14,15 @@ const Get_available_files_button = () => {
   const handleDownloadPDF = async (event) => {
     let filename=event.target.id
     try {
+      const accessToken = await getAccessTokenSilently({
+        authorizationParams: {
+          audience: `https://dev-j3w5kkcgno5ahh5s.us.auth0.com/api/v2/`,
+          scope: "read:current_user",
+        },
+      });
         const response = await axios.get(
             `http://127.0.0.1:5002/pdf/${filename}`,
-            { responseType: "blob" } // To handle binary data
+            { responseType: "blob",headers: { Authorization: `Bearer ${accessToken}` } },// To handle binary data
         );
 
         // Create a blob and trigger download
